@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>Websocket Chat</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <!-- CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css">
+    <style>
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<div class="container" id="app">
+    <div class="row">
+        <div class="col-md-12">
+            <h3>채팅방 리스트</h3>
+        </div>
+    </div>
+    <div class="input-group">
+        <div class="input-group-prepend">
+            <label class="input-group-text">방제목</label>
+        </div>
+        <input type="text" id="roomName" class="form-control" placeholder="방 제목 입력">
+        <div class="input-group-append">
+            <button id="createRoomButton" class="btn btn-primary" type="button">채팅방 개설</button>
+        </div>
+    </div>
+    <ul id="chatroomsList" class="list-group"></ul>
+</div>
+<!-- JavaScript -->
+<script src="/webjars/axios/1.7.7/dist/axios.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const app = {
+            roomNameInput: document.getElementById('roomName'),
+            createRoomButton: document.getElementById('createRoomButton'),
+            chatroomsList: document.getElementById('chatroomsList'),
+
+            chatrooms: [],
+
+            init() {
+                this.createRoomButton.addEventListener('click', () => this.createRoom());
+                this.roomNameInput.addEventListener('keyup', (event) => {
+                    if (event.key === 'Enter') {
+                        this.createRoom();
+                    }
+                });
+                this.findAllRoom();
+            },
+
+            findAllRoom() {
+                fetch('/chat/rooms')
+                    .then(response => response.json())
+                    .then(data => {
+                        this.chatrooms = data;
+                        this.renderChatrooms();
+                    });
+            },
+
+            renderChatrooms() {
+                this.chatroomsList.innerHTML = '';
+                this.chatrooms.forEach(room => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item list-group-item-action';
+                    li.textContent = room.name;
+                    li.addEventListener('click', () => this.enterRoom(room.roomId));
+                    this.chatroomsList.appendChild(li);
+                });
+            },
+
+            createRoom() {
+                const roomName = this.roomNameInput.value.trim();
+                if (roomName === "") {
+                    alert("방 제목을 입력해 주십시요.");
+                    return;
+                }
+
+                const params = new URLSearchParams();
+                params.append("name", roomName);
+
+                fetch('/chat/room', {
+                    method: 'POST',
+                    body: params,
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.name + " 방 개설에 성공하였습니다.");
+                        this.roomNameInput.value = '';
+                        this.findAllRoom();
+                    })
+                    .catch(() => {
+                        alert("채팅방 개설에 실패하였습니다.");
+                    });
+            },
+
+            enterRoom(roomId) {
+                const sender = prompt('대화명을 입력해 주세요.');
+                if (sender) {
+                    localStorage.setItem('wschat.sender', sender);
+                    localStorage.setItem('wschat.roomId', roomId);
+                    location.href = "/chat/room/enter/" + roomId;
+                }
+            }
+        };
+
+        app.init();
+    });
+</script>
+</body>
+</html>

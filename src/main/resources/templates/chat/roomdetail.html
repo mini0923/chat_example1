@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>Websocket ChatRoom</title>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css">
+    <style>
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<div class="container" id="app">
+    <div>
+        <h2 id="roomName"></h2>
+    </div>
+    <div class="input-group">
+        <div class="input-group-prepend">
+            <label class="input-group-text">내용</label>
+        </div>
+        <input type="text" id="messageInput" class="form-control" placeholder="메시지를 입력하세요">
+        <div class="input-group-append">
+            <button id="sendMessageButton" class="btn btn-primary" type="button">보내기</button>
+        </div>
+    </div>
+    <ul id="messagesList" class="list-group"></ul>
+    <div></div>
+</div>
+<!-- JavaScript -->
+<script src="/webjars/axios/1.7.7/dist/axios.min.js"></script>
+<script src="/webjars/sockjs-client/1.5.1/sockjs.min.js"></script>
+<script src="/webjars/stomp-websocket/2.3.4/stomp.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const app = {
+            roomId: localStorage.getItem('wschat.roomId'),
+            sender: localStorage.getItem('wschat.sender'),
+            room: {},
+            messages: [],
+            sock: null,
+            ws: null,
+            reconnect: 0,
+
+            init() {
+                this.fetchRoom();
+                this.setupWebSocket();
+                this.setupEventListeners();
+            },
+
+            fetchRoom() {
+                axios.get(`/chat/room/${this.roomId}`)
+                    .then(response => {
+                        this.room = response.data;
+                        document.getElementById('roomName').textContent = this.room.name;
+                    });
+            },
+
+            setupEventListeners() {
+                const messageInput = document.getElementById('messageInput');
+                const sendMessageButton = document.getElementById('sendMessageButton');
+
+                sendMessageButton.addEventListener('click', () => this.sendMessage());
+                messageInput.addEventListener('keypress', (event) => {
+                    if (event.key === 'Enter') {
+                        this.sendMessage();
+                    }
+                });
+            },
+
+            sendMessage() {
+                const messageInput = document.getElementById('messageInput');
+                const message = messageInput.value.trim();
+
+                if (message) {
+                    this.ws.send("/pub/chat/message", {}, JSON.stringify({
+                        type: 'TALK',
+                        roomId: this.roomId,
+                        sender: this.sender,
+                        message: message
+                    }));
+                    messageInput.value = '';
+                }
+            },
+
+            recvMessage(recv) {
+                const messagesList = document.getElementById('messagesList');
+                const li = document.createElement('li');
+                li.className = 'list-group-item';
+                li.textContent = `${recv.sender} - ${recv.message}`;
+                messagesList.insertBefore(li, messagesList.firstChild);
+            },
+
+            setupWebSocket() {
+                this.sock = new SockJS("/ws-stomp");
+                this.ws = Stomp.over(this.sock);
+                this.connect();
+            },
+
+            connect() {
+                this.ws.connect({}, (frame) => {
+                    this.ws.subscribe(`/sub/chat/room/${this.roomId}`, (message) => {
+                        const recv = JSON.parse(message.body);
+                        this.recvMessage(recv);
+                    });
+                    this.ws.send("/pub/chat/message", {}, JSON.stringify({
+                        type: 'ENTER',
+                        roomId: this.roomId,
+                        sender: this.sender
+                    }));
+                }, (error) => {
+                    if (this.reconnect++ <= 5) {
+                        setTimeout(() => {
+                            console.log("connection reconnect");
+                            this.setupWebSocket();
+                        }, 10 * 1000);
+                    }
+                });
+            }
+        };
+
+        app.init();
+    });
+</script>
+</body>
+</html>
