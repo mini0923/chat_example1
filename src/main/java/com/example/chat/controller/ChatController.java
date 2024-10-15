@@ -1,7 +1,7 @@
-package com.example.chat_example.chat.controller;
+package com.example.chat.controller;
 
-import com.example.chat_example.chat.dto.ChatRoom;
-import com.example.chat_example.chat.service.ChatService;
+import com.example.chat.DTO.ChatRoom;
+import com.example.chat.service.ChatService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,9 +20,8 @@ public class ChatController {
         }
 
         @GetMapping
-        public List<ChatRoom> getAll() {
-            return chatService.findAll();
+        public List<ChatRoom> findAllRooms() {
+            return chatService.findAllRoom();
         }
-
 
 }
