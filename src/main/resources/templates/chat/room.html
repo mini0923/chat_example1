@@ -100,7 +100,7 @@
             },
 
             enterRoom(roomId) {
-                const sender = prompt('대화명을 입력해 주세요.');
+                const sender = prompt('본인 아이디를 입력해 주세요.');
                 if (sender) {
                     localStorage.setItem('wschat.sender', sender);
                     localStorage.setItem('wschat.roomId', roomId);
